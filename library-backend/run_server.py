@@ -1,4 +1,3 @@
-# 📁 새로 생성된 파일: run_server.py
 # FastAPI 서버 실행 스크립트
 
 """
