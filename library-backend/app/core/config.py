@@ -1,6 +1,3 @@
-# 📁 새로 생성된 파일: app/core/config.py
-# 애플리케이션 설정 관리
-
 from pydantic_settings import BaseSettings
 from typing import List, Optional, Dict, Any
 import os
@@ -8,7 +5,7 @@ import boto3
 import json
 
 
-def get_db_secrets_from_aws(secret_name: str, region: str = "us-east-1") -> Dict[str, Any]:
+def get_db_secrets_from_aws(secret_name: str, region: str = "ap-northeast-2") -> Dict[str, Any]:
     """AWS Secrets Manager에서 DB 정보 전체 가져오기"""
     try:
         client = boto3.client("secretsmanager", region_name=region)
@@ -48,27 +45,34 @@ class Settings(BaseSettings):
     DB_SECRET_NAME: str = "database"  # 시크릿 이름
     
     # AWS Cognito 설정
-    AWS_REGION: str = "us-east-1"
-    COGNITO_USER_POOL_ID: str = ""
-    COGNITO_CLIENT_ID: str = ""
+    AWS_REGION: str = "ap-northeast-2"
+    COGNITO_USER_POOL_ID: str = "ap-northeast-2_mFvtIc1kQ"
+    COGNITO_CLIENT_ID: str = "3c0kds3554rvakp9piqv694at2"
     
     # AWS S3 설정 (IRSA 사용 - Access Key 불필요)
-    S3_BUCKET_NAME: str = ""
-    S3_REGION: str = "us-east-1"
+    S3_BUCKET_NAME: str = "knowledge-base-test-6575574"
+    S3_REGION: str = "ap-northeast-2"
     
     # AWS Step Functions 설정 (동영상 프리뷰 생성용)
     VIDEO_PREVIEW_STATE_MACHINE_ARN: str = ""
     
+    # AWS Step Functions 설정 (AI 제목 생성용)
+    AI_TITLE_GENERATOR_STATE_MACHINE_ARN: str = ""
+    
+    # 내부 서비스 API 키 (Lambda에서 백엔드 호출 시 사용)
+    INTERNAL_API_KEY: str = "fproject-internal-service-key-2024"
+    
+    # Redis 캐싱 설정 (ElastiCache)
+    REDIS_URL: str = ""
+    REDIS_TTL: int = 3000  # Presigned URL 캐시 TTL (50분, URL 만료 1시간보다 짧게)
+    
     # 백엔드 기본 URL (파일 프록시용)
-    BACKEND_BASE_URL: str = "http://localhost:8000"
+    BACKEND_BASE_URL: str = "https://api.aws11.shop"
     
     # JWT 설정
     JWT_SECRET_KEY: str = "your-super-secret-jwt-key-change-this-in-production"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    
-    # CORS 설정 (main.py에서 환경변수로 직접 처리)
-    # ALLOWED_ORIGINS는 k8s-deployment.yaml에서 설정
     
     # 프로젝트 정보
     PROJECT_NAME: str = "Library Management API"
@@ -84,13 +88,11 @@ class Settings(BaseSettings):
     @property
     def database_url_sync(self) -> str:
         """동기 데이터베이스 URL (Alembic 마이그레이션용)"""
-        # psycopg2 드라이버 사용 (동기)
         return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
     
     @property
     def database_url_async(self) -> str:
         """비동기 데이터베이스 URL (FastAPI용)"""
-        # asyncpg 드라이버 사용 (비동기)
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
 
@@ -109,7 +111,7 @@ if settings.USE_SECRETS_MANAGER:
         settings.DB_HOST = db_secrets.get("host", settings.DB_HOST)
         settings.DB_PORT = int(db_secrets.get("port", settings.DB_PORT))
         settings.DB_NAME = db_secrets.get("dbname", settings.DB_NAME)
-        settings.DB_USER = db_secrets.get("dbuser", settings.DB_USER)
+        settings.DB_USER = db_secrets.get("username", settings.DB_USER)  # Secret Manager 키: username
         settings.DB_PASSWORD = db_secrets.get("password", settings.DB_PASSWORD)
         print("✅ DB 정보 로드 완료")
     else:
