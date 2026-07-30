@@ -50,6 +50,6 @@ def setup_tracing(service_name: str = None):
     # 전역 TracerProvider 설정
     trace.set_tracer_provider(provider)
     
-    logger.info(f"✅ OpenTelemetry 초기화 완료 - service: {service}, endpoint: {otlp_endpoint}")
+    logger.info(f"OpenTelemetry 초기화 완료 - service: {service}, endpoint: {otlp_endpoint}")
     
     return trace.get_tracer(__name__)

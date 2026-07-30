@@ -1,6 +1,3 @@
-# 📁 새로 생성된 파일: app/api/v1/upload.py
-# 실제 S3 파일 업로드 API
-
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, File, Form, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +33,6 @@ async def generate_real_presigned_url(
     - AWS S3 클라이언트를 사용하여 실제 업로드 URL 생성
     """
     try:
-        # 업로드 요청 검증
         valid, error_msg, file_info = file_service.validate_upload_request(
             filename=request.filename,
             content_type=request.content_type,
@@ -49,12 +45,11 @@ async def generate_real_presigned_url(
                 detail=error_msg
             )
         
-        # 실제 S3 Presigned URL 생성
         if not current_user:
             if not settings.DEBUG:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="??? ?????",
+                    detail="인증이 필요합니다",
                 )
             user_id = "test_user"
             username = "test_user"
@@ -108,7 +103,6 @@ async def generate_download_url(
     try:
         from app.crud.library_item import library_item_crud
         
-        # 아이템 조회 및 권한 확인
         item = await library_item_crud.get(db, id=item_id)
         if not item:
             raise HTTPException(
@@ -116,7 +110,6 @@ async def generate_download_url(
                 detail="파일을 찾을 수 없습니다"
             )
         
-        # 소유자이거나 공개 파일인지 확인
         is_owner = str(item.user_profile_id) == str(current_user.id)
         is_public = item.visibility == "public"
         
@@ -126,13 +119,11 @@ async def generate_download_url(
                 detail="이 파일에 대한 접근 권한이 없습니다"
             )
         
-        # S3 다운로드 URL 생성
         download_url = await s3_service.generate_presigned_download_url(
             s3_key=item.s3_key,
-            expires_in=3600  # 1시간
+            expires_in=3600
         )
         
-        # 썸네일 URL도 함께 생성 (있는 경우)
         thumbnail_url = None
         if item.s3_thumbnail_key:
             thumbnail_url = await s3_service.generate_presigned_download_url(
@@ -166,9 +157,6 @@ async def generate_download_url(
         )
 
 
-
-
-
 @router.post(
     "/upload-and-get-url",
     response_model=SuccessResponse[Dict[str, str]],
@@ -186,14 +174,12 @@ async def upload_file_and_get_url(
     파일 업로드 후 S3 Key 즉시 반환 API
     """
     try:
-        # 사용자 확인 (개발 환경에서는 deps.py에서 이미 test_user 처리됨)
         if not current_user:
             if not settings.DEBUG:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="인증이 필요합니다"
                 )
-            # 이 경우는 발생하지 않아야 함 (deps.py에서 처리)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="사용자 처리 오류"
@@ -202,7 +188,6 @@ async def upload_file_and_get_url(
         user_id = current_user.user_id
         logger.info(f"업로드 사용자: {current_user.user_id} (ID: {user_id})")
 
-        # 파일 검증
         valid, error_msg, file_info = file_service.validate_upload_request(
             filename=file.filename,
             content_type=file.content_type,
@@ -215,13 +200,10 @@ async def upload_file_and_get_url(
                 detail=error_msg
             )
 
-        # 1. S3 키 생성
         s3_key = s3_service.generate_s3_key(file.filename, user_id)
         
-        # 2. 파일 내용 읽기
         file_content = await file.read()
         
-        # 3. S3에 실제 파일 업로드
         upload_success = await s3_service.upload_file_content(
             s3_key=s3_key,
             file_content=file_content,
@@ -239,7 +221,6 @@ async def upload_file_and_get_url(
                 detail="S3 파일 업로드 실패"
             )
         
-        # 4. DB에 메타데이터 저장
         item_data = LibraryItemCreate(
             name=name,
             type=file_info["item_type"],
@@ -254,7 +235,6 @@ async def upload_file_and_get_url(
             db, user_id=user_id, item_in=item_data
         )
 
-        # 5. 동영상인 경우 프리뷰 생성 Step Functions 트리거
         execution_arn = None
         if s3_service.is_video_file(file.content_type):
             execution_arn = await s3_service.trigger_video_preview_generation(
@@ -264,7 +244,6 @@ async def upload_file_and_get_url(
             if execution_arn:
                 logger.info(f"프리뷰 생성 시작: {execution_arn}")
 
-        # 6. S3 Key만 반환 (URL 생성하지 않음)
         logger.info(f"파일 업로드 완료: {file.filename} -> {s3_key}")
         
         response_data = {
@@ -293,7 +272,6 @@ async def upload_file_and_get_url(
         )
 
 
-
 @router.post(
     "/preview-callback",
     response_model=SuccessResponse[Dict[str, str]],
@@ -304,15 +282,14 @@ async def preview_generation_callback(
     item_id: str = Form(...),
     preview_key: str = Form(...),
     thumbnail_key: Optional[str] = Form(None),
+    subtitle_key: Optional[str] = Form(None),
+    transcribe_key: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db)
 ) -> SuccessResponse[Dict[str, str]]:
     """
     프리뷰 생성 완료 콜백 API
-    - Step Functions 완료 후 Lambda에서 호출
-    - DB에 프리뷰 키 및 썸네일 키 업데이트
     """
     try:
-        # 아이템 조회
         item = await library_item_crud.get(db, id=item_id)
         if not item:
             raise HTTPException(
@@ -320,13 +297,19 @@ async def preview_generation_callback(
                 detail="아이템을 찾을 수 없습니다"
             )
         
-        # 프리뷰 키 업데이트
         item.s3_preview_key = preview_key
         
-        # 썸네일 키 업데이트 (있는 경우)
         if thumbnail_key:
             item.s3_thumbnail_key = thumbnail_key
             logger.info(f"썸네일 키 업데이트: {item_id} -> {thumbnail_key}")
+        
+        if subtitle_key:
+            item.s3_subtitle_key = subtitle_key
+            logger.info(f"자막 키 업데이트: {item_id} -> {subtitle_key}")
+        
+        if transcribe_key:
+            item.s3_transcribe_key = transcribe_key
+            logger.info(f"Transcribe 키 업데이트: {item_id} -> {transcribe_key}")
         
         await db.commit()
         await db.refresh(item)
@@ -341,6 +324,12 @@ async def preview_generation_callback(
         
         if thumbnail_key:
             result["thumbnail_key"] = thumbnail_key
+        
+        if subtitle_key:
+            result["subtitle_key"] = subtitle_key
+        
+        if transcribe_key:
+            result["transcribe_key"] = transcribe_key
         
         return SuccessResponse(
             data=result,

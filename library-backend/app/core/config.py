@@ -13,10 +13,10 @@ def get_db_secrets_from_aws(secret_name: str, region: str = "ap-northeast-2") ->
         secret = response.get("SecretString", "")
         # JSON 형식 파싱
         secret_dict = json.loads(secret)
-        print(f"✅ Secrets Manager에서 DB 정보 로드 완료: {secret_name}")
+        print(f"Secrets Manager에서 DB 정보 로드 완료: {secret_name}")
         return secret_dict
     except Exception as e:
-        print(f"⚠️ Secrets Manager 호출 실패: {e}")
+        print(f"Secrets Manager 호출 실패: {e}")
         return {}
 
 
@@ -101,7 +101,7 @@ settings = Settings()
 
 # Secrets Manager에서 DB 정보 전체 가져오기
 if settings.USE_SECRETS_MANAGER:
-    print("🔐 AWS Secrets Manager에서 DB 정보 가져오는 중...")
+    print("AWS Secrets Manager에서 DB 정보 가져오는 중...")
     db_secrets = get_db_secrets_from_aws(
         settings.DB_SECRET_NAME, 
         settings.AWS_REGION
@@ -113,16 +113,16 @@ if settings.USE_SECRETS_MANAGER:
         settings.DB_NAME = db_secrets.get("dbname", settings.DB_NAME)
         settings.DB_USER = db_secrets.get("username", settings.DB_USER)  # Secret Manager 키: username
         settings.DB_PASSWORD = db_secrets.get("password", settings.DB_PASSWORD)
-        print("✅ DB 정보 로드 완료")
+        print("DB 정보 로드 완료")
     else:
-        print("⚠️ Secrets Manager에서 DB 정보를 가져오지 못했습니다. 환경변수 사용.")
+        print("secrets Manager에서 DB 정보를 가져오지 못했습니다. 환경변수 사용.")
 
 # 개발 환경에서만 설정 정보 출력
 if settings.DEBUG:
-    print("🔧 애플리케이션 설정 로드 완료")
-    print(f"📊 데이터베이스: {settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}")
-    print(f"👤 DB 사용자: {settings.DB_USER}")
-    print(f"🌐 서버: {settings.HOST}:{settings.PORT}")
-    print(f"🔐 JWT 알고리즘: {settings.JWT_ALGORITHM}")
-    print(f"☁️ AWS 리전: {settings.AWS_REGION}")
-    print(f"🪣 S3 버킷: {settings.S3_BUCKET_NAME}")
+    print("애플리케이션 설정 로드 완료")
+    print(f"데이터베이스: {settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}")
+    print(f"DB 사용자: {settings.DB_USER}")
+    print(f"서버: {settings.HOST}:{settings.PORT}")
+    print(f"JWT 알고리즘: {settings.JWT_ALGORITHM}")
+    print(f"AWS 리전: {settings.AWS_REGION}")
+    print(f"S3 버킷: {settings.S3_BUCKET_NAME}")
